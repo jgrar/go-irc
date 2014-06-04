@@ -25,12 +25,12 @@ func CRLFSplitter (data []byte, atEOF bool) (advance int, token []byte, err erro
 
 }
 
-func JsonIRCSplitter (data []byte, atEOF bool) (advance int, token []byte, err error) {
+func RawToJsonIRC (data []byte, atEOF bool) (advance int, token []byte, err error) {
 	advance, token, err = CRLFSplitter(data, atEOF)
 
 	if err == nil && token != nil {
 		msg := &IRCMessage{}
-		err = msg.UnmarshalText(token)
+		err = msg.Unmarshal(token)
 
 		if err == nil {
 			token, err = json.Marshal(msg)
@@ -46,7 +46,7 @@ type IRCMessage struct{
 	Trailing string
 }
 
-func (m *IRCMessage) UnmarshalText (text []byte) error {
+func (m *IRCMessage) Unmarshal (text []byte) error {
 	var i int
 
 	if len(text) == 0 || text == nil {
@@ -97,7 +97,7 @@ func (m *IRCMessage) UnmarshalText (text []byte) error {
 	return nil
 }
 
-func (m *IRCMessage) MarshalText () (text []byte, err error) {
+func (m *IRCMessage) Marshal () (text []byte, err error) {
 	var buf bytes.Buffer
 
 	if len(m.Prefix) != 0 {

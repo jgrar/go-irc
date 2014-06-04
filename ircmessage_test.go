@@ -152,7 +152,7 @@ func TestUnmarshalText(t *testing.T) {
 	for _, ut := range mtests {
 		var m IRCMessage
 
-		if err := m.UnmarshalText(ut.line); err != nil {
+		if err := m.Unmarshal(ut.line); err != nil {
 			if ut.shouldFail {
 				t.Logf("expected failure: on %q: %s", ut.line, err)
 				continue
@@ -192,7 +192,7 @@ func TestMarshalText(t *testing.T) {
 			continue
 		}
 
-		line, err := mt.msg.MarshalText()
+		line, err := mt.msg.Marshal()
 
 		if err != nil && mt.shouldFail {
 			t.Logf("expected failure on %s: %s", mt.msg, err)
@@ -215,7 +215,7 @@ var unmarshaltext_bench = []byte(":server.kevlar.net NOTICE user :*** This is a 
 func BenchmarkUnmarshalText(b *testing.B) {
 	var m IRCMessage
 	for i := 0; i < b.N; i++ {
-		m.UnmarshalText(unmarshaltext_bench)
+		m.Unmarshal(unmarshaltext_bench)
 	}
 
 }
@@ -224,6 +224,6 @@ var marshaltext_bench = IRCMessage{"someguy!user@foo.bar.com", "PRIVMSG", []stri
 
 func BenchmarkMarshalText(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		marshaltext_bench.MarshalText()
+		marshaltext_bench.Marshal()
 	}
 }
