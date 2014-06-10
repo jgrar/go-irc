@@ -1,14 +1,15 @@
-package ircmessage
+package irc
 
 import (
 	"bytes"
 	"strings"
 	"testing"
+	"encoding/json"
 )
 
 type mtest struct {
 	line        []byte
-	msg         IRCMessage
+	msg         Message
 	shouldFail  bool
 	skipMarshal bool
 }
@@ -18,21 +19,21 @@ var (
 
 		mtest{
 			[]byte(":nick!user@host.com PRIVMSG #42o3L1t3 :l0l sw4g 0m9 s0 c00l 42o"),
-			IRCMessage{"nick!user@host.com", "PRIVMSG", []string{"#42o3L1t3"}, "l0l sw4g 0m9 s0 c00l 42o"},
+			Message{"nick!user@host.com", "PRIVMSG", []string{"#42o3L1t3"}, "l0l sw4g 0m9 s0 c00l 42o"},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte("COMMAND :no arguments here!"),
-			IRCMessage{"", "COMMAND", nil, "no arguments here!"},
+			Message{"", "COMMAND", nil, "no arguments here!"},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte("COMMAND nothing but arguments!"),
-			IRCMessage{"", "COMMAND", []string{"nothing", "but", "arguments!"}, ""},
+			Message{"", "COMMAND", []string{"nothing", "but", "arguments!"}, ""},
 			false,
 			false,
 		},
@@ -40,7 +41,7 @@ var (
 		// empty - valid per rfc
 		mtest{
 			nil,
-			IRCMessage{"", "", nil, ""},
+			Message{"", "", nil, ""},
 			true, // must fail- empty lines are valid but the user needs to know
 			false,
 		},
@@ -48,7 +49,7 @@ var (
 		// empty prefix - short message
 		mtest{
 			[]byte(":"),
-			IRCMessage{"", "", nil, ""},
+			Message{"", "", nil, ""},
 			true,
 			true,
 		},
@@ -56,7 +57,7 @@ var (
 		// prefix, no command - short message
 		mtest{
 			[]byte(":foo"),
-			IRCMessage{"", "", nil, ""},
+			Message{"foo", "", nil, ""},
 			true,
 			false,
 		},
@@ -78,70 +79,70 @@ var (
 
 		mtest{
 			[]byte("foo bar baz asdf"),
-			IRCMessage{"", "foo", []string{"bar", "baz", "asdf"}, ""},
+			Message{"", "foo", []string{"bar", "baz", "asdf"}, ""},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte("foo bar baz :asdf quux"),
-			IRCMessage{"", "foo", []string{"bar", "baz"}, "asdf quux"},
+			Message{"", "foo", []string{"bar", "baz"}, "asdf quux"},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte("foo bar baz"),
-			IRCMessage{"", "foo", []string{"bar", "baz"}, ""},
+			Message{"", "foo", []string{"bar", "baz"}, ""},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte("foo bar baz ::asdf"),
-			IRCMessage{"", "foo", []string{"bar", "baz"}, ":asdf"},
+			Message{"", "foo", []string{"bar", "baz"}, ":asdf"},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte(":test foo bar baz asdf"),
-			IRCMessage{"test", "foo", []string{"bar", "baz", "asdf"}, ""},
+			Message{"test", "foo", []string{"bar", "baz", "asdf"}, ""},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte(":test foo bar baz :asdf quux"),
-			IRCMessage{"test", "foo", []string{"bar", "baz"}, "asdf quux"},
+			Message{"test", "foo", []string{"bar", "baz"}, "asdf quux"},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte(":test foo bar baz"),
-			IRCMessage{"test", "foo", []string{"bar", "baz"}, ""},
+			Message{"test", "foo", []string{"bar", "baz"}, ""},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte(":test foo bar baz ::asdf"),
-			IRCMessage{"test", "foo", []string{"bar", "baz"}, ":asdf"},
+			Message{"test", "foo", []string{"bar", "baz"}, ":asdf"},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte(":foo bar"),
-			IRCMessage{"foo", "bar", nil, ""},
+			Message{"foo", "bar", nil, ""},
 			false,
 			false,
 		},
 
 		mtest{
 			[]byte(":foo :bar baz"),
-			IRCMessage{"foo", "", nil, "bar baz"},
+			Message{"foo", "", nil, "bar baz"},
 			true,
 			false,
 		},
@@ -150,7 +151,7 @@ var (
 
 func TestUnmarshalText(t *testing.T) {
 	for _, ut := range mtests {
-		var m IRCMessage
+		var m Message
 
 		if err := m.Unmarshal(ut.line); err != nil {
 			if ut.shouldFail {
@@ -213,14 +214,25 @@ func TestMarshalText(t *testing.T) {
 var unmarshaltext_bench = []byte(":server.kevlar.net NOTICE user :*** This is a test")
 
 func BenchmarkUnmarshalText(b *testing.B) {
-	var m IRCMessage
+	var m Message
 	for i := 0; i < b.N; i++ {
 		m.Unmarshal(unmarshaltext_bench)
 	}
 
 }
 
-var marshaltext_bench = IRCMessage{"someguy!user@foo.bar.com", "PRIVMSG", []string{"#testing"}, "foo bar baz quux"}
+var unmarshaljson_bench = []byte(
+	`{"Prefix":"server.kevlar.net","Command":"Notice","Parameters":["user"],"Trailing":"*** This is a test"}`)
+
+func BenchmarkUnmarshalJson (b *testing.B) {
+
+	for i := 0; i < b.N; i++ {
+		var m Message
+		json.Unmarshal(unmarshaljson_bench, &m)
+	}
+}
+
+var marshaltext_bench = Message{"someguy!user@foo.bar.com", "PRIVMSG", []string{"#testing"}, "foo bar baz quux"}
 
 func BenchmarkMarshalText(b *testing.B) {
 	for i := 0; i < b.N; i++ {

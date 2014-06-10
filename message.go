@@ -1,54 +1,22 @@
-package ircmessage
+package irc
 
 import (
 	"bytes"
 	"strings"
 	"encoding/json"
 	"errors"
+	//"log"
 )
 
-func CRLFSplitter (data []byte, atEOF bool) (advance int, token []byte, err error) {
-
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-	}
-
-	if i := bytes.Index(data, []byte{'\r', '\n'}); i >= 0 {
-		return i + 2, data[:i], nil
-	}
-
-	if atEOF {
-		return len(data), data, nil
-	}
-
-	return 0, nil, nil
-
-}
-
-func RawToJsonIRC (data []byte, atEOF bool) (advance int, token []byte, err error) {
-	advance, token, err = CRLFSplitter(data, atEOF)
-
-	if err == nil && token != nil {
-		msg := &IRCMessage{}
-		err = msg.Unmarshal(token)
-
-		if err == nil {
-			token, err = json.Marshal(msg)
-		}
-	}
-
-	return
-}
-
-type IRCMessage struct{
+type Message struct{
 	Prefix, Command string
 	Parameters []string
 	Trailing string
 }
 
-func (m *IRCMessage) Unmarshal (text []byte) error {
-	var i int
+func (m *Message) Unmarshal (text []byte) error {
 
+	var i int
 	if len(text) == 0 || text == nil {
 		return nil
 	}
@@ -97,7 +65,7 @@ func (m *IRCMessage) Unmarshal (text []byte) error {
 	return nil
 }
 
-func (m *IRCMessage) Marshal () (text []byte, err error) {
+func (m *Message) Marshal () (text []byte, err error) {
 	var buf bytes.Buffer
 
 	if len(m.Prefix) != 0 {
@@ -121,3 +89,35 @@ func (m *IRCMessage) Marshal () (text []byte, err error) {
 	return buf.Bytes(), err
 }
 
+func ScanLines (data []byte, atEOF bool) (advance int, token []byte, err error) {
+
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+
+	if i := bytes.Index(data, []byte{'\r', '\n'}); i >= 0 {
+		return i + 2, data[:i], nil
+	}
+
+	if atEOF {
+		return len(data), data, nil
+	}
+
+	return 0, nil, nil
+
+}
+
+func ScanJson (data []byte, atEOF bool) (advance int, token []byte, err error) {
+	advance, token, err = ScanLines(data, atEOF)
+
+	if err == nil && token != nil {
+		msg := &Message{}
+		err = msg.Unmarshal(token)
+
+		if err == nil {
+			token, err = json.Marshal(msg)
+		}
+	}
+
+	return
+}
